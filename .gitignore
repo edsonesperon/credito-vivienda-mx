@@ -1,0 +1,27 @@
+# --- Datos: no se versionan (son reproducibles desde la fuente) ---
+data/raw/*
+data/interim/*
+data/processed/*
+!data/**/.gitkeep
+
+# --- Entornos ---
+.env
+.venv/
+env/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Tracking de experimentos (se agrega en fase 4) ---
+mlruns/
+
+# --- Sistema ---
+.DS_Store
+
+# Nota: outputs/ SÍ se versiona (son los entregables: reportes, exportes).

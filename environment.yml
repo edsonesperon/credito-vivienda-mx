@@ -1,0 +1,31 @@
+name: credito-vivienda-mx
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+
+  # --- Núcleo: ingesta y manejo de datos ---
+  - pandas
+  - numpy
+  - requests
+
+  # --- Entorno de trabajo ---
+  - jupyterlab
+
+  # --- EDA ---
+  - matplotlib
+  - seaborn
+
+  # --- Modelo de datos (panel en SQLite) ---
+  - sqlalchemy
+
+  # --- Modelado (fase 4) y baselines de series ---
+  - scikit-learn
+  - statsmodels
+
+  # --- Pruebas ---
+  - pytest
+
+# Nota de disciplina: las dependencias de tracking (mlflow), servicio
+# (fastapi, uvicorn) y contenedor se agregan en sus fases (4-5), no antes.
+# Adoptar herramienta solo cuando el proyecto la exige.
