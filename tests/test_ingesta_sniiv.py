@@ -1,12 +1,13 @@
 """
 Pruebas de la capa de normalización contra respuestas REALES observadas en los
 ejemplos oficiales de datos abiertos del SNIIV. Sin red: son fixtures tomadas
-literalmente de la documentación (endpoints GetINFONAVIT / GetCNBV / GetCONAVI).
+literalmente de la documentación (endpoints GetINFONAVIT / GetCNBV / GetCONAVI)
+y de la validación empírica de la fuente (el mes como nombre en español).
 
 Lo que estas pruebas SÍ verifican: que el parser sobrevive a las inconsistencias
 reales de la API (año/anio, sexo/genero, número vs cadena, acciones vacía, llave
-faltante). Lo que NO pueden verificar: la ruta de red contra la API viva, porque
-este entorno no alcanza gob.mx. Esa parte se valida con notebooks/00_validacion_fuente.py.
+faltante, mes como nombre). Lo que NO pueden verificar: la ruta de red contra la
+API viva. Esa parte se valida con notebooks/01_validacion_v2.py.
 """
 
 import sys
@@ -14,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from ingesta_sniiv import _a_numero, normalizar_filas  # noqa: E402
+from ingesta_sniiv import _a_numero, _a_mes, normalizar_filas  # noqa: E402
 
 # --- Fixtures: filas tal como aparecen en los ejemplos oficiales del SNIIV ----
 
@@ -60,7 +61,7 @@ def test_alias_anio_y_genero():
 
 def test_medidas_preservan_valor_real():
     norm = normalizar_filas(INFONAVIT_2018, ("anio", "municipio", "genero"))
-    # El monto de INFONAVIT trae pesos reales (refuta el "monto=0" que afirmé antes).
+    # El monto de INFONAVIT trae pesos reales (refuta el "monto=0" de antes).
     assert norm[0]["monto"] == 3973467.36
     assert norm[0]["acciones"] == 13
 
@@ -70,13 +71,28 @@ def test_conavi_cadena_y_vacia():
     assert norm[0]["acciones"] is None       # "" -> None
     assert norm[0]["monto"] == 1087800       # "1087800" -> 1087800
     assert norm[1]["acciones"] == 37
-    assert norm[0]["anio"] == 2018           # "2018" (cadena) queda como valor
+    assert norm[0]["anio"] == 2018           # "2018" (cadena) -> 2018 (entero)
 
 
 def test_dimension_faltante_se_hace_visible():
     # Si se pide una dimensión que la respuesta no trajo, aparece como None.
     norm = normalizar_filas(CNBV_2018, ("anio", "municipio", "genero", "segmento"))
     assert all(f["segmento"] is None for f in norm)
+
+
+def test_mes_nombre_a_numero():
+    # La API devuelve el mes como NOMBRE en español, no como número (observado).
+    assert _a_mes("abril") == 4
+    assert _a_mes("Enero") == 1        # la API puede capitalizar
+    assert _a_mes("diciembre") == 12
+    assert _a_mes(7) == 7
+    assert _a_mes("bruma") is None     # desconocido -> None, no se inventa
+
+    filas = [{"año": 2026, "municipio": "Mérida", "mes": "abril",
+              "acciones": 500, "monto": 300000000}]
+    norm = normalizar_filas(filas, ("anio", "municipio", "mes"))
+    assert norm[0]["mes"] == "abril"   # el nombre original se conserva
+    assert norm[0]["mes_num"] == 4     # y se agrega el número
 
 
 if __name__ == "__main__":
