@@ -30,7 +30,16 @@ CRUDO = RAIZ / "data" / "raw" / "panel_infonavit_nacional.csv"
 PROC = RAIZ / "data" / "processed"
 ADQUISICION = {"Nueva", "Existente"}
 UMBRALES = [1, 2, 3, 5, 10, 20]  # mediana de acciones de adquisición por mes
-UMBRAL_ELEGIDO = 3               # provisional; se ajusta viendo el barrido real
+UMBRAL_ELEGIDO = 5               # cerrado en D7: mediana de acciones/mes
+UMBRAL_COBERTURA = 0.5           # fracción mínima de meses con dato
+
+# Por qué DOS criterios y no solo la mediana: la mediana se calcula sobre las
+# celdas CON dato, así que un municipio con 9 meses de actividad en 8 años tiene
+# mediana alta y pasaría el filtro, mientras que uno con 130 meses de actividad
+# baja no. El criterio de mediana solo PREMIA LA ESCASEZ. El piso de cobertura lo
+# corrige: exige que la serie exista de verdad, no solo que sus pocos puntos sean
+# grandes. Caso que lo destapó: Valle de Guadalupe (Jalisco), 9 meses con dato en
+# el panel, mediana 14, cobertura 0.066.
 
 
 def cargar() -> pd.DataFrame:
@@ -74,7 +83,7 @@ def barrido_umbral(disp: pd.DataFrame) -> pd.DataFrame:
     total_monto = disp["monto_total"].sum()
     filas = []
     for u in UMBRALES:
-        elig = disp[disp["mediana_mensual"] >= u]
+        elig = disp[(disp["mediana_mensual"] >= u) & (disp["cobertura"] >= UMBRAL_COBERTURA)]
         filas.append({
             "umbral_mediana_mensual": u,
             "municipios_elegibles": len(elig),
@@ -108,14 +117,19 @@ def main():
     barr = barrido_umbral(disp)
     _p("Barrido de umbral — municipios vs. cobertura del volumen nacional", barr)
 
-    disp["elegible"] = disp["mediana_mensual"] >= UMBRAL_ELEGIDO
+    disp["elegible"] = ((disp["mediana_mensual"] >= UMBRAL_ELEGIDO)
+                        & (disp["cobertura"] >= UMBRAL_COBERTURA))
+    descartados_cobertura = int(((disp["mediana_mensual"] >= UMBRAL_ELEGIDO)
+                                 & (disp["cobertura"] < UMBRAL_COBERTURA)).sum())
     n_elig = int(disp["elegible"].sum())
-    print(f"\nCon umbral provisional = {UMBRAL_ELEGIDO}: {n_elig} municipios elegibles "
+    print(f"\nCriterio: mediana >= {UMBRAL_ELEGIDO} acciones/mes Y cobertura >= {UMBRAL_COBERTURA}")
+    print(f"  descartados por cobertura pese a pasar la mediana: {descartados_cobertura}")
+    print(f"  elegibles: {n_elig} municipios "
           f"({round(100*n_elig/len(disp),1)}% de municipios, "
           f"{round(100*disp[disp['elegible']]['acciones_totales'].sum()/disp['acciones_totales'].sum(),1)}% del volumen).")
 
     _p("20 municipios más grandes (adquisición)", disp, 20)
-    _p("15 municipios en la frontera del umbral provisional",
+    _p("15 municipios en la frontera del umbral",
        disp[disp["mediana_mensual"].between(UMBRAL_ELEGIDO - 1, UMBRAL_ELEGIDO + 2)], 15)
 
     PROC.mkdir(parents=True, exist_ok=True)
