@@ -19,13 +19,18 @@ dependencies:
   # --- Modelo de datos (panel en SQLite) ---
   - sqlalchemy
 
-  # --- Modelado (fase 4) y baselines de series ---
+  # --- Modelado y baselines de series ---
   - scikit-learn
   - statsmodels
+
+  # --- Tracking de experimentos (fase 4): tracking local a mlruns/, sin
+  #     servidor ni base de datos. El registry y el servidor entran cuando el
+  #     servicio los pida, no antes (D5: MLOps del tamaño correcto). ---
+  - mlflow
 
   # --- Pruebas ---
   - pytest
 
-# Nota de disciplina: las dependencias de tracking (mlflow), servicio
-# (fastapi, uvicorn) y contenedor se agregan en sus fases (4-5), no antes.
-# Adoptar herramienta solo cuando el proyecto la exige.
+# Nota de disciplina: las dependencias de servicio (fastapi, uvicorn) y
+# contenedor se agregan en su fase (5), no antes. Adoptar herramienta solo
+# cuando el proyecto la exige.
