@@ -44,13 +44,12 @@ tendencia). Debe batirse en **ambas** estadísticas, no solo en la mediana, para
 que el modelo no gane con un truco de centro mientras empeora la cola. Si no lo
 supera, el entregable honesto es el pipeline operativo.
 
-**D3b · Criterio de éxito SECUNDARIO (diagnóstico de transferibilidad).**
-Comparar el modelo nacional contra uno entrenado solo con Mérida, ambos sobre los
-mismos meses de Mérida fuera de muestra. Responde si la arquitectura de
-entrenamiento nacional le sirve a Mérida o si Mérida es idiosincrática. Formal
-pero secundario: no mide si el modelo sirve (eso es D3), mide si el rumbo de
-entrenamiento fue el correcto. Cualquier resultado es un hallazgo; si Mérida gana
-en solitario, se pivota a modelo regional.
+**D3b · Criterio de éxito SECUNDARIO (nacional vs local) — CUMPLIDO.**
+Se comparó el modelo nacional contra uno entrenado solo con Mérida, sobre los
+mismos meses de Mérida fuera de muestra. Resultado: el nacional gana (MASE 0.537
+vs 0.961 del local y 0.819 del ETS local). El pooling le sirve a Mérida; el rumbo
+de entrenamiento nacional-entrena / local-predice queda validado. Detalle en la
+sección "Resultado D3b" más abajo.
 
 **D4 · Fuente inicial: Infonavit, con ingesta agnóstica a la fuente.** Se arranca
 con `GetINFONAVIT` como columna vertebral. La capa de ingesta se diseñó agnóstica
@@ -148,6 +147,31 @@ Matiz honesto: la media (0.839) es peor que la mediana (0.767) y el p90 es 1.357
 — sigue habiendo una cola (~30% de municipios con MASE >= 1) donde el modelo
 pierde contra el naive, probablemente los nueve quiebres estructurales y los más
 volátiles. Es margen de mejora real, no un defecto que invalide el resultado.
+
+## Resultado D3b (nacional vs local) — el pooling le sirve a Mérida
+
+Comparación justa sobre Mérida (31/050), mismo holdout de 12 meses, mismo
+denominador MASE. Solo-Mérida entrenado únicamente con los ~1,278 pares de Mérida,
+con hiperparámetros apropiados a ese tamaño (regularización más suave que la del
+nacional, para no sabotearlo).
+
+| modelo sobre Mérida | MASE  |
+|---------------------|-------|
+| **modelo_nacional** | **0.537** |
+| ets_sin_tendencia   | 0.819 |
+| modelo_solo_merida  | 0.961 |
+| seasonal_naive      | 1.093 |
+
+El nacional gana con margen amplio. Y el confundido de tamaño de muestra se
+disuelve: el solo-Mérida pierde incluso contra el ETS (0.961 > 0.819) — con 1,278
+filas el gradient boosting se sobreajusta y no generaliza, así que su derrota no
+es "el pooling es mejor por poco" sino "Mérida sola no alcanza". El pooling no solo
+no perjudica a Mérida: la mejora sustancialmente (0.537 vs 0.819 del ETS local).
+D2 validado con evidencia: el modelo aísla el nivel de Mérida con sus features de
+contexto (`hist_mean`, `hist_std`) y comparte solo la dinámica.
+Matiz: es n=1 (una sola ventana). El margen es tan amplio que es improbable que se
+revierta, pero un backtest de origen móvil sería la versión a prueba de balas si
+se necesita blindar la afirmación para la maestría o un cliente.
 
 ## Trampas del dato
 
