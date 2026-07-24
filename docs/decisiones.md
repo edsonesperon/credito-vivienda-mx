@@ -126,6 +126,29 @@ Evaluación fuera de muestra, 316 municipios, holdout de 12 meses, métrica MASE
 Se elige **ets_sin_tendencia** como piso formal: gana en media, p90 y porcentaje
 de series batidas; su desventaja en mediana (0.003) es ruido.
 
+## Resultado Fase 4 (modelo) — el criterio primario D3 SE CUMPLE
+
+Modelo global directo (HistGradientBoosting, pérdida absoluta): un solo modelo
+sobre 403,116 pares (origen, horizonte) de los 316 municipios, con el horizonte
+como feature y anti-fuga verificada por construcción. Evaluado sobre los mismos
+316 municipios y los mismos 12 meses que los baselines, con el MASE de idéntico
+denominador:
+
+| método (acciones) | mediana | media | p90   | % MASE<1 |
+|-------------------|---------|-------|-------|----------|
+| **modelo_gbr**    | **0.767** | **0.839** | **1.357** | **70.3** |
+| ets_sin_tendencia | 0.999   | 1.102 | 1.852 | 50.3     |
+| ets_con_tendencia | 1.016   | 1.108 | 1.798 | 48.6     |
+| seasonal_naive    | 1.184   | 1.292 | 2.088 | 35.1     |
+
+El modelo bate el piso en las cuatro estadísticas y le gana al mejor baseline en
+69.5% de los municipios. El error no se degrada con el horizonte (MAE ~16-25 de
+h=1 a h=12), lo que valida la arquitectura directa.
+Matiz honesto: la media (0.839) es peor que la mediana (0.767) y el p90 es 1.357
+— sigue habiendo una cola (~30% de municipios con MASE >= 1) donde el modelo
+pierde contra el naive, probablemente los nueve quiebres estructurales y los más
+volátiles. Es margen de mejora real, no un defecto que invalide el resultado.
+
 ## Trampas del dato
 
 - **T1 · "valor de la vivienda" es segmento categórico, no pesos.** Indexado a UMA.
@@ -179,6 +202,13 @@ de series batidas; su desventaja en mediana (0.003) es ruido.
   el periodo de prueba. Por eso no detecta la caída de San Luis Potosí capital tras
   perder el territorio de Villa de Pozos. Mejorar antes de confiar en él como
   monitoreo.
+- **Verificación pendiente antes de producción:** confirmar que la ventaja del
+  modelo es pooling legítimo y no una filtración sutil entre municipios del mismo
+  mes. La prueba anti-fuga cubre que las features no ven el futuro de su propia
+  serie; falta descartar fuga transversal. No bloquea el avance.
+- **La cola del modelo:** ~30% de municipios con MASE >= 1 (p90 1.357). Atacar con
+  target escalado por nivel del municipio, tratamiento de los quiebres, o ajuste
+  de hiperparámetros. Es la siguiente iteración si se decide mejorar el modelo.
 - **Features municipales de INEGI:** por definir cuáles y de qué tablas.
 - **CNBV como fuente #2:** fase posterior (cubre el mercado de mayor valor).
 - **SII para ingreso:** solo si resulta imprescindible y vuelve el servicio.
