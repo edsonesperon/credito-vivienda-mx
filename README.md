@@ -72,9 +72,13 @@ python notebooks/03_dispersion_umbral.py    # local: filtra, mide, deriva el umb
 python notebooks/04_panel_modelado.py       # panel balanceado + detección de quiebres
 python notebooks/05_baselines.py            # seasonal-naive y ETS, evaluación temporal
 
-# Modelo: features anti-fuga y gradient boosting contra el piso
+# Modelo: features anti-fuga, gradient boosting, diagnóstico y tracking
 python notebooks/06_features.py             # pares (origen, horizonte), sin fuga temporal
 python notebooks/07_modelo.py               # HistGBR global, comparación con baselines
+python notebooks/08_diagnostico_local.py    # nacional vs solo-Mérida (transferibilidad)
+python notebooks/09_tracking.py             # registro de experimentos en MLflow
+
+# Ver los experimentos:  mlflow ui   (http://127.0.0.1:5000)
 ```
 
 La validación **descubre** —no asume— qué años tiene la API, qué dimensiones
@@ -86,7 +90,7 @@ acepta y su comportamiento real. Todo se deriva de la respuesta.
 1. **Validación de la fuente** — arnés empírico; resuelve las incógnitas de la API. (completada)
 2. **Ingesta nacional + dispersión** — panel crudo nacional; umbral de municipios. (completada)
 3. **Panel de modelado y baselines** — panel limpio; baselines seasonal-naive y ETS. (completada)
-4. **Modelo** — evaluación temporal contra el piso, tracking (MLflow). (en proceso)
+4. **Modelo** — gradient boosting que bate el piso; tracking con MLflow. (completada)
 5. Servicio (API) + contenedor (Docker).
 6. Monitoreo, reentrenamiento programado, CI.
 7. Tablero e indicadores de producto (incluida la brecha de asequibilidad como salida).
