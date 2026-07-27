@@ -89,6 +89,13 @@ observación no se rellena: el municipio pudo no existir (T11). Después de la
 primera observación, un mes ausente SÍ es cero real. El panel resultante es
 desbalanceado a propósito: cada municipio empieza cuando empieza.
 
+**D11 · Tracking de experimentos: MLflow local con backend SQLite.** Las corridas
+(modelo y baselines) se registran en `mlflow.db` + `mlartifacts/` (locales, sin
+servidor ni base de datos remota — D5). Nota: MLflow 3.x dejó el file store puro
+en modo mantenimiento y exige un backend de base de datos; SQLite es el mínimo que
+cumple, sin dejar de ser un solo archivo local. El model registry y el servidor de
+tracking entran cuando exista el servicio (fase 5), no antes.
+
 **D10 · Partición temporal:** últimos 12 meses (mayo 2025 a abril 2026) como
 prueba fuera de muestra; el resto entrena. Doce meses dan un ciclo estacional
 completo y manejan de forma natural el 2026 parcial. Nunca partición aleatoria.
