@@ -18,8 +18,10 @@ __pycache__/
 # --- Jupyter ---
 .ipynb_checkpoints/
 
-# --- Tracking de experimentos (se agrega en fase 4) ---
+# --- Tracking de experimentos (fase 4): backend SQLite local ---
 mlruns/
+mlflow.db
+mlartifacts/
 
 # --- Sistema ---
 .DS_Store
