@@ -23,14 +23,16 @@ dependencies:
   - scikit-learn
   - statsmodels
 
-  # --- Tracking de experimentos (fase 4): tracking local a mlruns/, sin
-  #     servidor ni base de datos. El registry y el servidor entran cuando el
-  #     servicio los pida, no antes (D5: MLOps del tamaño correcto). ---
+  # --- Tracking de experimentos (fase 4): tracking local a mlflow.db +
+  #     mlartifacts/, sin servidor remoto (D5). ---
   - mlflow
+
+  # --- Servicio (fase 5): API que sirve las predicciones pre-computadas.
+  #     El contenedor (Docker) es el paso siguiente, no una dependencia de conda. ---
+  - fastapi
+  - uvicorn
 
   # --- Pruebas ---
   - pytest
 
-# Nota de disciplina: las dependencias de servicio (fastapi, uvicorn) y
-# contenedor se agregan en su fase (5), no antes. Adoptar herramienta solo
-# cuando el proyecto la exige.
+# Nota de disciplina: se adopta cada herramienta cuando su fase la exige, no antes.
