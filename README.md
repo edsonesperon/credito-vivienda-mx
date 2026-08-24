@@ -8,6 +8,8 @@ pipeline completo: ingesta de datos públicos, validación, modelado con evaluac
 temporal honesta, tracking de experimentos y una API contenerizada que sirve el
 pronóstico por HTTP.
 
+![Arquitectura del sistema: de datos públicos SNIIV/Infonavit a servicio contenerizado](docs/arquitectura.png)
+
 > **Alcance, con precisión:** modela el crédito **Infonavit de adquisición**
 > (`modalidad ∈ {Nueva, Existente}`) — el grueso de la vivienda formal de interés
 > social y medio. No cubre crédito bancario ni compra al contado; la integración de
