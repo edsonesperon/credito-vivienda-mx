@@ -1,0 +1,33 @@
+# Todo lo que el contenedor de servicio NO necesita. Reduce el contexto de build
+# y mantiene la imagen mínima: solo entran api/ y data/processed/predicciones.csv.
+
+# Control de versiones y basura de Python
+.git/
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# Entrenamiento, análisis y documentación: no son parte del servicio
+notebooks/
+tests/
+docs/
+src/
+outputs/
+environment.yml
+README.md
+
+# Tracking de experimentos
+mlruns/
+mlflow.db
+mlartifacts/
+
+# Datos: solo se necesita la tabla de predicciones; el resto se excluye
+data/raw/
+data/interim/
+data/processed/*
+!data/processed/predicciones.csv
+
+# Sistema
+.DS_Store

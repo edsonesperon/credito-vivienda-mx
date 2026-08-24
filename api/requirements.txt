@@ -1,0 +1,6 @@
+# Dependencias MÍNIMAS del servicio (no del proyecto completo). Solo lo que la API
+# necesita para leer predicciones.csv y servirlo por HTTP. Sin scikit-learn,
+# statsmodels ni mlflow: esos son de entrenamiento, no de servicio.
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
+pandas
