@@ -6,10 +6,10 @@ sureste. Tercer proyecto de una línea sobre vivienda del sureste, y salto
 deliberado hacia **ML engineering / MLOps**: no solo modelar, sino ingerir,
 versionar, servir, monitorear y reentrenar un modelo vivo.
 
-> **Estado:** en construcción — Fase 4 (modelo). Fases 0-3 completas: andamiaje,
-> validación de la fuente, ingesta nacional con análisis de dispersión, y panel de
-> modelado con su piso de baselines. Ver `docs/decisiones.md` para el detalle de lo
-> decidido y las trampas del dato documentadas.
+> **Estado:** en construcción — Fase 6 (monitoreo y CI). Fases 0-5 completas: de la
+> ingesta de datos reales de gobierno al modelo que bate el piso, su tracking, y una
+> API contenerizada que sirve el pronóstico por HTTP. Ver `docs/decisiones.md` para
+> el detalle de lo decidido y las trampas del dato documentadas.
 
 ## Qué hace
 
@@ -27,8 +27,9 @@ versionar, servir, monitorear y reentrenar un modelo vivo.
 - **Criterio de éxito:** primario — superar el piso de baselines fuera de muestra,
   con validación temporal. **Cumplido:** el modelo global (gradient boosting) baja
   el MASE mediano de 1.00 (ETS) a 0.767 y la media de 1.10 a 0.839, ganándole al
-  mejor baseline en 69.5% de los municipios. Secundario (pendiente) — diagnóstico
-  de transferibilidad (modelo nacional vs. solo-Mérida).
+  mejor baseline en 69.5% de los municipios. Secundario (cumplido) — el modelo
+  nacional le gana al entrenado solo con Mérida (MASE 0.537 vs 0.961): el pooling
+  le sirve al mercado local.
 
 Un hallazgo que orientó el diseño: entre 2015 y 2025 el número de créditos de
 adquisición cayó 7% mientras el monto creció 2.35x. El mercado no crece en
@@ -42,6 +43,7 @@ credito-vivienda-mx/
 ├── data/{raw,interim,processed}/   dato crudo → intermedio → panel final (no versionado)
 ├── docs/                           visión, fuentes, decisiones (bitácora)
 ├── notebooks/                      exploración numerada (00_, 01_, …)
+├── api/                            servicio FastAPI que sirve el pronóstico
 ├── src/                            código reutilizable e importable
 ├── tests/                          pruebas del código de src/
 └── outputs/                        entregables (reportes, exportes)
@@ -79,6 +81,16 @@ python notebooks/08_diagnostico_local.py    # nacional vs solo-Mérida (transfer
 python notebooks/09_tracking.py             # registro de experimentos en MLflow
 
 # Ver los experimentos:  mlflow ui   (http://127.0.0.1:5000)
+
+# Pronóstico de producción (reentrena con todo el dato, proyecta 12 meses)
+python notebooks/10_predicciones.py
+
+# Servir la API localmente
+uvicorn api.main:app --reload            # docs en http://127.0.0.1:8000/docs
+
+# O en contenedor Docker
+docker build -t credito-vivienda-mx .
+docker run -p 8000:8000 credito-vivienda-mx
 ```
 
 La validación **descubre** —no asume— qué años tiene la API, qué dimensiones
@@ -91,8 +103,8 @@ acepta y su comportamiento real. Todo se deriva de la respuesta.
 2. **Ingesta nacional + dispersión** — panel crudo nacional; umbral de municipios. (completada)
 3. **Panel de modelado y baselines** — panel limpio; baselines seasonal-naive y ETS. (completada)
 4. **Modelo** — gradient boosting que bate el piso; tracking con MLflow. (completada)
-5. Servicio (API) + contenedor (Docker).
-6. Monitoreo, reentrenamiento programado, CI.
+5. **Servicio** — API FastAPI sobre predicciones pre-computadas; contenedor Docker mínimo. (completada)
+6. **Monitoreo, reentrenamiento programado, CI.** (en proceso)
 7. Tablero e indicadores de producto (incluida la brecha de asequibilidad como salida).
 
 ## Fuentes
