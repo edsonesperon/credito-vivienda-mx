@@ -89,6 +89,10 @@ observación no se rellena: el municipio pudo no existir (T11). Después de la
 primera observación, un mes ausente SÍ es cero real. El panel resultante es
 desbalanceado a propósito: cada municipio empieza cuando empieza.
 
+**D10 · Partición temporal:** últimos 12 meses (mayo 2025 a abril 2026) como
+prueba fuera de muestra; el resto entrena. Doce meses dan un ciclo estacional
+completo y manejan de forma natural el 2026 parcial. Nunca partición aleatoria.
+
 **D11 · Tracking de experimentos: MLflow local con backend SQLite.** Las corridas
 (modelo y baselines) se registran en `mlflow.db` + `mlartifacts/` (locales, sin
 servidor ni base de datos remota — D5). Nota: MLflow 3.x dejó el file store puro
@@ -96,9 +100,19 @@ en modo mantenimiento y exige un backend de base de datos; SQLite es el mínimo 
 cumple, sin dejar de ser un solo archivo local. El model registry y el servidor de
 tracking entran cuando exista el servicio (fase 5), no antes.
 
-**D10 · Partición temporal:** últimos 12 meses (mayo 2025 a abril 2026) como
-prueba fuera de muestra; el resto entrena. Doce meses dan un ciclo estacional
-completo y manejan de forma natural el 2026 parcial. Nunca partición aleatoria.
+**D12 · Servicio: API sobre predicciones pre-computadas, en contenedor mínimo.**
+El modelo de producción se reentrena con TODO el dato (hasta el último mes) y
+proyecta el futuro genuino (12 meses); esas predicciones se pre-computan y se
+guardan (`predicciones.csv`). La API (FastAPI) solo consulta esa tabla — no
+reentrena ni reconstruye features en tiempo de respuesta, así que es rápida y sin
+superficie de error de modelado al servir. Blindaje anti training-serving skew:
+las features de pronóstico se construyen con la MISMA función que las de entrenar,
+verificado con una aserción de columnas idénticas.
+El contenedor es MÍNIMO de servicio: solo Python, FastAPI, uvicorn, pandas y
+`predicciones.csv` — sin scikit-learn, statsmodels ni mlflow, que son de
+entrenamiento. Resultado: imagen de ~103 MB de contenido, frente a los ~1.5-2 GB
+que pesaría si arrastrara el entorno de modelado. Separar la imagen de servicio de
+la de entrenamiento es la decisión de arquitectura, coherente con D5.
 
 ## Hallazgos confirmados contra la API
 
@@ -179,6 +193,18 @@ contexto (`hist_mean`, `hist_std`) y comparte solo la dinámica.
 Matiz: es n=1 (una sola ventana). El margen es tan amplio que es improbable que se
 revierta, pero un backtest de origen móvil sería la versión a prueba de balas si
 se necesita blindar la afirmación para la maestría o un cliente.
+
+## Servicio (Fase 5) — el modelo, servido por HTTP y contenerizado
+
+La API expone el pronóstico por municipio (`GET /prediccion/{estado}/{clave}`,
+con horizonte opcional), un catálogo (`/municipios`) y salud (`/`), con docs
+interactivas automáticas en `/docs`. Casos de error manejados: municipio
+inexistente devuelve 404 (no 500), horizonte fuera de 1-12 devuelve 422.
+Contenerizada con Docker: la imagen se construyó (~103 MB de contenido) y el
+contenedor levanta y devuelve el pronóstico real de Mérida por HTTP, verificado
+end-to-end. Origen del pronóstico de producción: 2026-04; objetivos mayo 2026 a
+abril 2027. El pronóstico de Mérida reproduce la estacionalidad de dominio (pico
+en diciembre ~473, desplome en enero ~252, nivel ~350/mes acorde a su histórico).
 
 ## Trampas del dato
 
