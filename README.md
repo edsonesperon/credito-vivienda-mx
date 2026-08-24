@@ -1,126 +1,124 @@
 # Observatorio de Vivienda Financiada
 
-Sistema de *machine learning* de punta a punta que estima la demanda de crédito
-de vivienda a nivel municipal en México, con foco de despliegue en Mérida y el
-sureste. Tercer proyecto de una línea sobre vivienda del sureste, y salto
-deliberado hacia **ML engineering / MLOps**: no solo modelar, sino ingerir,
-versionar, servir, monitorear y reentrenar un modelo vivo.
+**Pronóstico municipal de demanda de crédito de vivienda Infonavit, con machine learning.**
 
-> **Estado:** en construcción — Fase 6 (monitoreo y CI). Fases 0-5 completas: de la
-> ingesta de datos reales de gobierno al modelo que bate el piso, su tracking, y una
-> API contenerizada que sirve el pronóstico por HTTP. Ver `docs/decisiones.md` para
-> el detalle de lo decidido y las trampas del dato documentadas.
+Sistema integral de machine learning que estima, mes a mes y por municipio,
+cuántos créditos de adquisición de vivienda Infonavit habrá en México. Cubre el
+pipeline completo: ingesta de datos públicos, validación, modelado con evaluación
+temporal honesta, tracking de experimentos y una API contenerizada que sirve el
+pronóstico por HTTP.
 
-## Qué hace
+> **Alcance, con precisión:** modela el crédito **Infonavit de adquisición**
+> (`modalidad ∈ {Nueva, Existente}`) — el grueso de la vivienda formal de interés
+> social y medio. No cubre crédito bancario ni compra al contado; la integración de
+> CNBV (banca) es una extensión natural (ver *Trabajo futuro*).
 
-- **Medida objetivo:** monto de crédito de adquisición (`modalidad ∈ {Nueva,
-  Existente}`), modelado en dos componentes — número de acciones × ticket
-  promedio — por municipio y mes, con desglose por segmento.
-- **Universo de modelado:** panel mensual 2015-2026 sobre los 316 municipios que
-  superan un criterio doble (mediana ≥ 5 acciones de adquisición/mes Y cobertura
-  ≥ 50% de los meses), derivado de la distribución nacional, no fijado a ojo.
-  Cubren 97.7% del volumen; los demás se marcan, no se borran.
-- **Enfoque de entrenamiento:** panel nacional (los municipios de pocos datos
-  toman fuerza prestada de los de muchos); despliegue con foco en Mérida y el
-  sureste. La especialización local vive en el dominio y el producto, no en
-  recortar el set de entrenamiento.
-- **Criterio de éxito:** primario — superar el piso de baselines fuera de muestra,
-  con validación temporal. **Cumplido:** el modelo global (gradient boosting) baja
-  el MASE mediano de 1.00 (ETS) a 0.767 y la media de 1.10 a 0.839, ganándole al
-  mejor baseline en 69.5% de los municipios. Secundario (cumplido) — el modelo
-  nacional le gana al entrenado solo con Mérida (MASE 0.537 vs 0.961): el pooling
-  le sirve al mercado local.
+## Resultado
 
-Un hallazgo que orientó el diseño: entre 2015 y 2025 el número de créditos de
-adquisición cayó 7% mientras el monto creció 2.35x. El mercado no crece en
-volumen, se encarece. Por eso el target pronosticable es el conteo de acciones, y
-el precio se modela por separado.
+- **El modelo le gana al baseline.** Un modelo global de gradient boosting baja el
+  error (MASE) mediano de **1.00** (mejor baseline estadístico ETS) a **0.767**, y
+  el medio de 1.10 a **0.839**, sobre los mismos 316 municipios y los mismos 12
+  meses fuera de muestra. Le gana al mejor baseline en el **69.5%** de los municipios.
+- **La estrategia de entrenamiento está validada, no asumida.** Un modelo entrenado
+  con todo el país predice Mérida mejor (MASE **0.537**) que uno entrenado solo con
+  Mérida (**0.961**) — el aprendizaje entre municipios transfiere. Esta comparación
+  se construyó para poder *refutar* la hipótesis, no solo confirmarla.
+- **Sirve en producción.** La API devuelve el pronóstico a 12 meses de cualquier
+  municipio; empaquetada en una imagen Docker de servicio de ~103 MB (15x más
+  liviana que si arrastrara el entorno de entrenamiento).
 
-## Estructura
+## Un hallazgo del dato
+
+Entre 2015 y 2025, el número de créditos de adquisición a nivel nacional **cayó 7%**
+mientras el monto en pesos **creció 2.35x**. El mercado de vivienda financiada no
+crece en volumen: se encarece. Por eso el sistema pronostica el *conteo* de créditos
+(la señal con estructura) y modela el precio por separado — una decisión de diseño
+que salió del dato, no de un supuesto.
+
+## Cómo está construido
 
 ```
-credito-vivienda-mx/
-├── data/{raw,interim,processed}/   dato crudo → intermedio → panel final (no versionado)
-├── docs/                           visión, fuentes, decisiones (bitácora)
-├── notebooks/                      exploración numerada (00_, 01_, …)
-├── api/                            servicio FastAPI que sirve el pronóstico
-├── src/                            código reutilizable e importable
-├── tests/                          pruebas del código de src/
-└── outputs/                        entregables (reportes, exportes)
+Datos públicos (SNIIV/Infonavit)
+      │  ingesta REST agnóstica a la fuente, con validación empírica
+      ▼
+Panel municipal mensual 2015-2026  (316 municipios elegibles, 97.7% del volumen)
+      │  features anti-fuga temporal + baselines (seasonal-naive, ETS)
+      ▼
+Modelo global de gradient boosting  (evaluación temporal, tracking en MLflow)
+      │  pronóstico de producción pre-computado
+      ▼
+API FastAPI  →  contenedor Docker
 ```
 
-## Instalación
+Detalle de cada decisión, con sus disyuntivas y las trampas del dato encontradas,
+en [`docs/decisiones.md`](docs/decisiones.md).
+
+## Cómo correrlo
 
 ```bash
+# Entorno
 conda env create -f environment.yml
 conda activate credito-vivienda-mx
-```
 
-## Uso
+# Servir la API localmente (docs interactivas en http://127.0.0.1:8000/docs)
+uvicorn api.main:app --reload
 
-```bash
-# Sanidad del parser, sin red (6/6 en verde)
-python tests/test_ingesta_sniiv.py
-
-# Validación de la fuente contra la API viva del SNIIV
-python notebooks/00_validacion_fuente.py
-python notebooks/01_validacion_v2.py
-
-# Ingesta nacional y análisis de dispersión (define el universo de modelado)
-python notebooks/02_ingesta_nacional.py     # lento: toca la red
-python notebooks/03_dispersion_umbral.py    # local: filtra, mide, deriva el umbral
-
-# Panel de modelado y piso de baselines
-python notebooks/04_panel_modelado.py       # panel balanceado + detección de quiebres
-python notebooks/05_baselines.py            # seasonal-naive y ETS, evaluación temporal
-
-# Modelo: features anti-fuga, gradient boosting, diagnóstico y tracking
-python notebooks/06_features.py             # pares (origen, horizonte), sin fuga temporal
-python notebooks/07_modelo.py               # HistGBR global, comparación con baselines
-python notebooks/08_diagnostico_local.py    # nacional vs solo-Mérida (transferibilidad)
-python notebooks/09_tracking.py             # registro de experimentos en MLflow
-
-# Ver los experimentos:  mlflow ui   (http://127.0.0.1:5000)
-
-# Pronóstico de producción (reentrena con todo el dato, proyecta 12 meses)
-python notebooks/10_predicciones.py
-
-# Servir la API localmente
-uvicorn api.main:app --reload            # docs en http://127.0.0.1:8000/docs
-
-# O en contenedor Docker
+# O en contenedor
 docker build -t credito-vivienda-mx .
 docker run -p 8000:8000 credito-vivienda-mx
 ```
 
-La validación **descubre** —no asume— qué años tiene la API, qué dimensiones
-acepta y su comportamiento real. Todo se deriva de la respuesta.
+Consulta, por ejemplo, `GET /prediccion/31/50` para el pronóstico de Mérida.
 
-## Hoja de ruta (fases)
+El pipeline completo (ingesta → panel → modelo → tracking → pronóstico) se
+reproduce corriendo los notebooks numerados de `notebooks/` en orden; cada uno
+documenta qué hace y qué verifica en su encabezado.
 
-0. **Andamiaje del repo** — entorno, estructura, convenciones. (completada)
-1. **Validación de la fuente** — arnés empírico; resuelve las incógnitas de la API. (completada)
-2. **Ingesta nacional + dispersión** — panel crudo nacional; umbral de municipios. (completada)
-3. **Panel de modelado y baselines** — panel limpio; baselines seasonal-naive y ETS. (completada)
-4. **Modelo** — gradient boosting que bate el piso; tracking con MLflow. (completada)
-5. **Servicio** — API FastAPI sobre predicciones pre-computadas; contenedor Docker mínimo. (completada)
-6. **Monitoreo, reentrenamiento programado, CI.** (en proceso)
-7. Tablero e indicadores de producto (incluida la brecha de asequibilidad como salida).
+## Qué demuestra este proyecto
+
+- Pipeline de datos reproducible sobre una fuente pública real, con sus
+  inconsistencias resueltas y **trece trampas del dato** documentadas.
+- Evaluación honesta: validación temporal (nunca aleatoria), anti-fuga verificada
+  por construcción, y una hipótesis de arquitectura sometida a una prueba que podía
+  refutarla.
+- Tramo de ML engineering completo: del dato crudo a un servicio desplegable, con
+  tracking de experimentos y contenerización de servicio mínima.
+
+## Trabajo futuro
+
+Cada extensión es un proyecto con su propio arco, sobre esta misma base y metodología:
+
+- **Integrar CNBV (crédito bancario):** la pieza que falta para pasar de "vivienda
+  Infonavit" a "mercado de vivienda financiada" completo, incluido el segmento alto.
+  La capa de ingesta ya se diseñó agnóstica a la fuente para admitirlo.
+- **Tablero / web interactiva:** un frontend que consuma esta API y muestre el
+  pronóstico de forma visual — pensado para un usuario no técnico (un desarrollador
+  inmobiliario), no solo para `/docs`.
+- **Monitoreo y CI:** detección de degradación del modelo, reentrenamiento
+  programado y pruebas automáticas en cada cambio.
+- **Mejorar la cola del modelo:** ~30% de municipios con MASE ≥ 1 (mercados con
+  quiebres estructurales); target escalado por nivel y tratamiento de quiebres.
 
 ## Fuentes
 
-- **SNIIV — CuboAPI** (SEDATU/Conavi): columna vertebral de la demanda financiada.
-- **Índice SHF de Precios de la Vivienda**: ancla de precio para asequibilidad.
+- **SNIIV — CuboAPI** (SEDATU/Conavi): demanda de crédito financiado. Fuente principal.
+- **Índice SHF de Precios de la Vivienda**: ancla de precio (asequibilidad).
 - **INEGI**: features municipales.
 
-Detalle, procedencia y trampas de cada fuente en `docs/fuentes-y-procedencia.md`.
+Procedencia y trampas de cada fuente en [`docs/fuentes-y-procedencia.md`](docs/fuentes-y-procedencia.md).
+
+## Contexto
+
+Tercer proyecto de una línea sobre vivienda del sureste mexicano, y un salto
+deliberado hacia ML engineering / MLOps: no solo modelar, sino ingerir, versionar,
+servir y monitorear un modelo. El foco de despliegue es Mérida y el sureste; el
+entrenamiento es nacional por diseño.
 
 ## Convenciones
 
 - Progresión secuencial, una decisión a la vez, con justificación explícita.
-- Código reutilizable en `src/`, exploración en `notebooks/`.
-- **Commits:** Conventional Commits — tipo en inglés (`feat`/`fix`/`docs`/`chore`/
-  `test`/`refactor`) + descripción en español, imperativa, minúscula, ≤50
-  caracteres, sin punto, sin ámbitos.
+- Código reutilizable en `src/`, exploración en `notebooks/`, servicio en `api/`.
+- **Commits:** Conventional Commits — tipo en inglés + descripción en español,
+  imperativa, minúscula, ≤50 caracteres.
 - Rigor: citar fuentes, no inventar, marcar el nivel de confianza del dato,
   documentar las trampas.
